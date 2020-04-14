@@ -46,14 +46,13 @@ public class MegafonSMSService implements SMSService {
         }
 
         try (CloseableHttpClient client = HttpClients.createDefault()) {
-            HttpPost httpPost = new HttpPost(this.baseUrl + "/notifications");
+            HttpPost httpPost = new HttpPost(String.format("%s/notifications?LOGIN=%s&APPL_CODE=%s",
+                    this.baseUrl, login, pw));
 
             JSONObject object = createJsonObject(formattedPhoneNumberForMegafon, message);
             List<String> stringList = Collections.singletonList(object.toString());
             HttpEntity httpEntity = new StringEntity(stringList.toString(), Charset.defaultCharset());
             httpPost.setEntity(httpEntity);
-            httpPost.setHeader("LOGIN", login);
-            httpPost.setHeader("APPL_CODE", pw);
             httpPost.setHeader("Accept", APPLICATION_JSON);
             httpPost.setHeader("Content-type", APPLICATION_JSON);
 
