@@ -18,7 +18,7 @@ import java.util.Set;
 /**
  * Created by nickpack on 09/08/2017.
  */
-public class KeycloakSmsAuthenticatorCredentialProvider implements CredentialProvider, CredentialInputValidator, CredentialInputUpdater, OnUserCache {
+public class KeycloakSmsAuthenticatorCredentialProvider implements CredentialProvider<SmsOtpCredentialModel>, CredentialInputValidator, CredentialInputUpdater, OnUserCache {
     private static final String CACHE_KEY = KeycloakSmsAuthenticatorCredentialProvider.class.getName() + "." + KeycloakSmsConstants.USR_CRED_MDL_SMS_CODE;
 
     private final KeycloakSession session;
@@ -45,16 +45,15 @@ public class KeycloakSmsAuthenticatorCredentialProvider implements CredentialPro
     public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input) {
         if (!KeycloakSmsConstants.USR_CRED_MDL_SMS_CODE.equals(input.getType())) return false;
         if (!(input instanceof UserCredentialModel)) return false;
-        UserCredentialModel credInput = (UserCredentialModel) input;
         List<CredentialModel> creds = session.userCredentialManager().getStoredCredentialsByType(realm, user, KeycloakSmsConstants.USR_CRED_MDL_SMS_CODE);
         if (creds.isEmpty()) {
             CredentialModel secret = new CredentialModel();
             secret.setType(KeycloakSmsConstants.USR_CRED_MDL_SMS_CODE);
-            secret.setValue(credInput.getValue());
+            secret.setSecretData(input.getChallengeResponse());
             secret.setCreatedDate(Time.currentTimeMillis());
             session.userCredentialManager().createCredential(realm, user, secret);
         } else {
-            creds.get(0).setValue(credInput.getValue());
+            creds.get(0).setSecretData(input.getChallengeResponse());
             session.userCredentialManager().updateCredential(realm, user, creds.get(0));
         }
         session.userCache().evict(realm, user);
@@ -94,11 +93,11 @@ public class KeycloakSmsAuthenticatorCredentialProvider implements CredentialPro
     @Override
     public boolean isValid(RealmModel realm, UserModel user, CredentialInput input) {
         if (!KeycloakSmsConstants.USR_CRED_MDL_SMS_CODE.equals(input.getType())) return false;
-        if (!(input instanceof UserCredentialModel)) return false;
+        if (!(input instanceof SmsOtpCredentialModel)) return false;
 
-        String secret = getSecret(realm, user).getValue();
+        String secret = getSecret(realm, user).getSecretData();
 
-        return secret != null && ((UserCredentialModel) input).getValue().equals(secret);
+        return secret != null && ((SmsOtpCredentialModel) input).getCredentialData().equals(secret);
     }
 
     @Override
@@ -107,5 +106,28 @@ public class KeycloakSmsAuthenticatorCredentialProvider implements CredentialPro
         if (!creds.isEmpty()) {
             user.getCachedWith().put(CACHE_KEY, creds.get(0));
         }
+    }
+
+    @Override
+    public SmsOtpCredentialModel getCredentialFromModel(CredentialModel credentialModel) {
+        return SmsOtpCredentialModel.createFromCredentialModel(credentialModel);
+    }
+
+    @Override
+    public String getType() {
+        return KeycloakSmsConstants.USR_CRED_MDL_SMS_CODE;
+    }
+
+    @Override
+    public CredentialModel createCredential(RealmModel realmModel, UserModel userModel, SmsOtpCredentialModel smsOtpCredentialModel) {
+        if (smsOtpCredentialModel.getCreatedDate() == null) {
+            smsOtpCredentialModel.setCreatedDate(Time.currentTimeMillis());
+        }
+        return session.userCredentialManager().createCredential(realmModel, userModel, smsOtpCredentialModel);
+    }
+
+    @Override
+    public void deleteCredential(RealmModel realm, UserModel user, String credentialId) {
+        session.userCredentialManager().removeStoredCredential(realm, user, credentialId);
     }
 }

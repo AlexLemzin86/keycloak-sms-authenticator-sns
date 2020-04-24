@@ -30,8 +30,8 @@ public class KeycloakSmsMobilenumberCredentialProvider implements CredentialProv
     public CredentialModel getSecret(RealmModel realm, UserModel user) {
         CredentialModel secret = null;
         if (user instanceof CachedUserModel) {
-            CachedUserModel cached = (CachedUserModel)user;
-            secret = (CredentialModel)cached.getCachedWith().get(CACHE_KEY);
+            CachedUserModel cached = (CachedUserModel) user;
+            secret = (CredentialModel) cached.getCachedWith().get(CACHE_KEY);
 
         } else {
             List<CredentialModel> creds = session.userCredentialManager().getStoredCredentialsByType(realm, user, MOBILE_NUMBER);
@@ -50,11 +50,11 @@ public class KeycloakSmsMobilenumberCredentialProvider implements CredentialProv
         if (creds.isEmpty()) {
             CredentialModel secret = new CredentialModel();
             secret.setType(MOBILE_NUMBER);
-            secret.setValue(credInput.getValue());
+            secret.setSecretData(credInput.getChallengeResponse());
             secret.setCreatedDate(Time.currentTimeMillis());
-            session.userCredentialManager().createCredential(realm ,user, secret);
+            session.userCredentialManager().createCredential(realm, user, secret);
         } else {
-            creds.get(0).setValue(credInput.getValue());
+            creds.get(0).setSecretData(credInput.getChallengeResponse());
             session.userCredentialManager().updateCredential(realm, user, creds.get(0));
         }
         session.userCache().evict(realm, user);
@@ -97,14 +97,48 @@ public class KeycloakSmsMobilenumberCredentialProvider implements CredentialProv
         if (!MOBILE_NUMBER.equals(input.getType())) return false;
         if (!(input instanceof UserCredentialModel)) return false;
 
-        String secret = getSecret(realm, user).getValue();
+        String secret = getSecret(realm, user).getSecretData();
 
-        return secret != null && ((UserCredentialModel)input).getValue().equals(secret);
+        return secret != null && ((UserCredentialModel) input).getChallengeResponse().equals(secret);
     }
 
     @Override
     public void onCache(RealmModel realm, CachedUserModel user, UserModel delegate) {
         List<CredentialModel> creds = session.userCredentialManager().getStoredCredentialsByType(realm, user, MOBILE_NUMBER);
         if (!creds.isEmpty()) user.getCachedWith().put(CACHE_KEY, creds.get(0));
+    }
+
+    @Override
+    public String getType() {
+        return MOBILE_NUMBER;
+    }
+
+    @Override
+    public CredentialModel createCredential(RealmModel realmModel, UserModel userModel, CredentialModel credentialModel) {
+        if (!MOBILE_NUMBER.equals(credentialModel.getType())) return null;
+
+        CredentialModel secret = new CredentialModel();
+        List<CredentialModel> creds = session.userCredentialManager().getStoredCredentialsByType(realmModel, userModel, MOBILE_NUMBER);
+        if (creds.isEmpty()) {
+            secret.setType(MOBILE_NUMBER);
+            secret.setSecretData(credentialModel.getSecretData());
+            secret.setCreatedDate(Time.currentTimeMillis());
+            session.userCredentialManager().createCredential(realmModel, userModel, secret);
+        } else {
+            creds.get(0).setSecretData(credentialModel.getSecretData());
+            session.userCredentialManager().updateCredential(realmModel, userModel, creds.get(0));
+        }
+        session.userCache().evict(realmModel, userModel);
+        return secret;
+    }
+
+    @Override
+    public void deleteCredential(RealmModel realmModel, UserModel userModel, String s) {
+        session.userCredentialManager().removeStoredCredential(realmModel, userModel, s);
+    }
+
+    @Override
+    public CredentialModel getCredentialFromModel(CredentialModel credentialModel) {
+        return null;
     }
 }
