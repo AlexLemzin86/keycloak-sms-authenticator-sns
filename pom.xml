@@ -6,7 +6,7 @@
 
     <groupId>six.six</groupId>
     <artifactId>keycloak-sms-authenticator-sns</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -76,13 +76,11 @@
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-core</artifactId>
-            <version>${version.keycloak}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-server-spi</artifactId>
-            <version>${version.keycloak}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
